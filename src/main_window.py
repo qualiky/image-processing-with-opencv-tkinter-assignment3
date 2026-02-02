@@ -152,6 +152,66 @@ class ControlPanel:
         """Create adjustment sliders"""
         ttk.Label(self.frame, text="Adjustments", font=("Helvetica", 10, "bold")).grid(row=3, column=0, columnspan=2, pady=(10,5))
 
+        # Now comes the difficult part - three sliders, with own labels. Need to be careful with how it is laid out, and how the mouse buttons bind with the functions
+
+        # Slider 1: Blur
+        ttk.Label(self.frame, text="Blur:").grid(row=4, column=0, sticky="w")
+
+        # we need a "state" variable to save the value of changes. Similar to useState in React. this intvar automatically observes and updates itself on slider change
+        self.blur_var = tk.IntVar(value=0)
+
+        # Now, the slider
+        blur_scale = ttk.Scale(self.frame, from_=0, to=20, variable=self.blur_var, orient=tk.HORIZONTAL)
+        blur_scale.grid(row=4, column=1, sticky="ew")
+
+        # On press of left mouse button, we need to call the function that starts blur adjustment
+        blur_scale.bind("<Button-1>", lambda e: self._start_blur_adjustment())
+
+        # As the slider moves, the blur needs to be preview-able live
+        blur_scale.bind("<B1-Motion>", lambda e: self._on_blur_preview())
+
+        # On release of the pressed left mouse button, we need to call function that finishes blur adjustment and pushes it to the history stack
+        blur_scale.bind("<ButtonRelease-1>", lambda e: self._finish_blur_adjustment())
+
+
+        # Slider 2: Brightness
+        ttk.Label(self.frame, text="Brightness:").grid(row=5, column=0, sticky="w")
+
+        # we need a "state" variable to save the value of changes as we did earlier with blur. Similar to useState in React. this intvar automatically observes and updates itself on slider change
+        self.brightness_var = tk.IntVar(value=0)
+
+        # Now, the slider
+        brightness_scale = ttk.Scale(self.frame, from_=-100, to=100, variable=self.brightness_var, orient=tk.HORIZONTAL)
+        brightness_scale.grid(row=5, column=1, sticky="ew")
+
+        # On press of left mouse button, we need to call the function that starts brightness adjustment
+        brightness_scale.bind("<Button-1>", lambda e: self._start_brightness_adjustment())
+
+        # As the slider moves, the brightness needs to be preview-able live
+        brightness_scale.bind("<B1-Motion>", lambda e: self._on_brightness_preview())
+
+        # On release of the pressed left mouse button, we need to call function that finishes brightness adjustment and pushes it to the history stack
+        brightness_scale.bind("<ButtonRelease-1>", lambda e: self._finish_brightness_adjustment())
+
+        # Slider 3: Contrast
+        ttk.Label(self.frame, text="Contrast:").grid(row=6, column=0, sticky="w")
+
+        # we need a "state" variable to save the value of changes as we did earlier with brightness. Similar to useState in React. this intvar automatically observes and updates itself on slider change
+        self.contrast_var = tk.IntVar(value=0)
+
+        # Now, the slider
+        contrast_scale = ttk.Scale(self.frame, from_=0.1, to=3.0, variable=self.contrast_var, orient=tk.HORIZONTAL)
+        contrast_scale.grid(row=6, column=1, sticky="ew")
+
+        # On press of left mouse button, we need to call the function that starts contrast adjustment
+        contrast_scale.bind("<Button-1>", lambda e: self._start_contrast_adjustment())
+
+        # As the slider moves, the contrast needs to be preview-able live
+        contrast_scale.bind("<B1-Motion>", lambda e: self._on_contrast_preview())
+
+        # On release of the pressed left mouse button, we need to call function that finishes contrast adjustment and pushes it to the history stack
+        contrast_scale.bind("<ButtonRelease-1>", lambda e: self._finish_contrast_adjustment())
+
 
 
     def _create_transform_controls(self) -> None:
