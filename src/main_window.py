@@ -1,7 +1,8 @@
 import tkinter as tk
 import numpy as np
+from PIL import Image, ImageTk
 from image_processor import ImageProcessor
-from typing import Callable
+from typing import Callable, Optional
 
 # PLEASE REFER TO THE REFERENCE UI SCREENSHOT BEFORE YOU WORK ON YOUR SECTIONS
 
@@ -55,21 +56,64 @@ class ImageCanvas:
             height: canvas height
 
         """
+        self._parent = parent
+        self._width = width
+        self._height = height
+        # just a simple canvas to draw the image on
+        self._canvas = tk.Canvas(parent, width=width, height=height)
+        self._image_id: Optional[int] = None
+        self._tk_image: Optional[ImageTk.PhotoImage] = None
+        self._display_scale: float = 1.0
 
     def display_image(self, image: np.ndarray) -> None:
-        """Display an image on the created canvas
+        """Show an image on the canvas"""
 
-        Args:
-            image: OpenCV array of image pixels
+        if image is None:
+            return
 
-        """
-        # Important - handle all exceptions here, there may be errors
+        try:
+            # OpenCV uses BGR, PIL wants RGB
+            if len(image.shape) == 2:
+                pil_image = Image.fromarray(image)
+            else:
+                pil_image = Image.fromarray(image[:, :, ::-1])
+
+            img_w, img_h = pil_image.size
+            if img_w == 0 or img_h == 0:
+                return
+
+            # figure out how much to shrink to fit
+            scale_w = self._width / img_w
+            scale_h = self._height / img_h
+            self._display_scale = min(scale_w, scale_h, 1.0)
+
+            # only resize if it's too big
+            if self._display_scale < 1:
+                new_w = int(img_w * self._display_scale)
+                new_h = int(img_h * self._display_scale)
+                pil_image = pil_image.resize((new_w, new_h), Image.LANCZOS)
+
+            # draw it in the center
+            self._tk_image = ImageTk.PhotoImage(pil_image)
+            self._canvas.delete("all")
+            self._image_id = self._canvas.create_image(
+                self._width // 2, self._height // 2,
+                image=self._tk_image, anchor="center"
+            )
+
+        except:
+            print("Error displaying image")
 
     def clear_canvas(self) -> None:
-        """Clear the canvas"""
+        """Remove everything from the canvas"""
+        self._canvas.delete("all")
+        self._image_id = None
+        self._tk_image = None
+        self._display_scale = 1.0
 
     def get_display_scale(self) -> float:
-        """Get current display scale factor. Important for efficient window management, menu layout and other transformations"""
+        """Return current scale factor"""
+        return self._display_scale
 
 
 

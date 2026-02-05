@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Optional, Tuple, List
+from cv2 import rotate, ROTATE_90_CLOCKWISE, ROTATE_180, ROTATE_90_COUNTERCLOCKWISE, flip, resize, INTER_AREA, INTER_LINEAR
 
 class ImageProcessor:
     """Core class that processes images with OpenCV. All image manipulation happen with an ImageProcessor instance"""
@@ -138,10 +139,27 @@ class ImageProcessor:
         Args:
             angle: int. This will be predefined, so the users can't just rotate it to an arbitrary angle (rarely required).
         """
+        if self._current_image is not None:
+            source = self._current_image
+        else:
+            source = self._original_image
 
+        if source is None:
+            return
+
+        if angle == 90:
+            rotated = rotate(source, ROTATE_90_CLOCKWISE)
+        elif angle == 180:
+            rotated = rotate(source, ROTATE_180)
+        elif angle == 270:
+            rotated = rotate(source, ROTATE_90_COUNTERCLOCKWISE)
+        else:
+            return
+
+        self._current_image = rotated
+        self.add_to_history()
         print(f"This function rotates the image at {self._filename}")
-
-
+        
     def flip_image(self, direction: str) -> None:
         """Flip image, horizontally or vertically along the X and Y axis
 
@@ -149,6 +167,22 @@ class ImageProcessor:
             direction: "horizontal" | "vertical"
 
         """
+        if self._current_image is not None:
+            source = self._current_image
+        else:
+            source = self._original_image
+        if source is None:
+            return
+
+        if direction == "horizontal":
+            result = flip(source, 1)
+        elif direction == "vertical":
+            result = flip(source, 0)
+        else:
+            return
+
+        self._current_image = result
+        self.add_to_history()
         print("This function flips image.")
 
 
@@ -159,38 +193,81 @@ class ImageProcessor:
             width: new width of the image
             height: new height of the image
         """
+        if self._current_image is not None:
+            source = self._current_image
+        else:
+            source = self._original_image
+        if source is None:
+            return
+
+        if width <= 0 or height <= 0:
+            return
+
+        self._current_image = resize(source, (width, height), interpolation=INTER_LINEAR)
+        self.add_to_history()
         print("This function resizes the image")
+
 
     def get_current_image(self) -> Optional[np.ndarray]:
         """Get current image as numpy array"""
+        image = self._current_image if self._current_image is not None else self._original_image
         print("Returning image as numpy array")
+        return image
 
     def can_undo(self) -> bool:
         """Is undo operation possible? Only if the stack has some data can undo be done"""
         print("Checking can undo...")
+        return self._history_index > 0
 
 
     def can_redo(self) -> bool:
         """Check if redo operation is possible. If stack isn't full, can be done"""
         print("Checking can redo...")
+        return self._history_index < len(self._history) - 1
 
     def undo(self) -> bool:
         """Undo last operation."""
+        if not self.can_undo():
+            print("Undo")
+            return False
+
+        self._history_index -= 1
+        self._current_image = self._history[self._history_index].copy()
         print("Undo")
+        return True
 
 
     def redo(self) -> bool:
         """Redo last undone operation."""
+        if not self.can_redo():
+            print("Redo")
+            return False
+
+        self._history_index += 1
+        self._current_image = self._history[self._history_index].copy()
         print("Redo")
+        return True
 
     def add_to_history(self) -> None:
         """Add current image state to history stack"""
+        if self._current_image is None:
+            return
+
+        if self._history_index < len(self._history) - 1:
+            self._history = self._history[: self._history_index + 1]
+
+        self._history.append(self._current_image.copy())
+        if len(self._history) > self._max_history:
+            self._history.pop(0)
+
+        self._history_index = len(self._history) - 1
         print("Adding image to history stack")
 
     def clear_history(self) -> None:
         """Clear all operation history. Destroy everything in the history stack."""
+        self._history = []
+        self._history_index = -1
         print("Clearing history.")
-
 
     # SET 4: Additional functions, because the preview implementation needs special functions to not apply cumulative values and pollute the history stack with incorrect values. TBD: Yasmeen
 
