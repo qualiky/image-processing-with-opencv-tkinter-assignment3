@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 from typing import Optional, Tuple, List
 from cv2 import rotate, ROTATE_90_CLOCKWISE, ROTATE_180, ROTATE_90_COUNTERCLOCKWISE, flip, resize, INTER_AREA, INTER_LINEAR
 
@@ -78,7 +79,16 @@ class ImageProcessor:
 
     def apply_grayscale_filter(self) -> None:
         """Convert the current image to grayscale image"""
-        print(f"This converts the current image at path {self._filename} to B&W")
+
+        if self._current_image is not None:
+            # The output of this first function is a grayscale image. This is basically doing [B=128, G=128, R=128] to a [GRAY=80] conversion
+            gray = cv2.cvtColor(self._current_image, cv2.COLOR_BGR2GRAY)
+
+            # We CANNOT use this output. We need to convert this consistent, single channel gray image back to a 3-channel BGR image, since everything we do is in BGR. The following line is equivalent of running [GRAY=80] to [B=80, G=80, R=80]
+            self._current_image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+            self.add_to_history()
+
 
 
     def apply_blur_filter(self, intensity: int) -> None:
@@ -86,7 +96,22 @@ class ImageProcessor:
 
         We only accept values between 0 to 20 in our implementation. This is because gaussian blur is a weighted average of pixels, and the kernel size above the pixels that uses weighted average to calculate blur grows with `intensity * 2 + 1` - effectively, with value 100, the function would have to perform weighted average of the center pixel with a 201 x 201 sized kernel, making it computationally expensive.
         """
-        print(f"This function applies gaussian blur to the image at path {self._filename}")
+        if self._current_image is not None:
+            if intensity > 0:
+                # The blur kernel resolution has to be defined manually based on the size of intensity
+                kernel_size = 2 * intensity + 1
+                # The third parameter is sigmaX, which ranges between 0.0 to 2.0. With a smaller sigma (or standard deviation) value, the central pixel has heavier weight - which results in minimal blur. With a bigger deviation value, the surrounding pixels have a closer distribution, making the blur heavy
+                # With a small kernel weight:
+                # [0.001  0.01   0.001]
+                # [0.01   0.95   0.01 ]  (Center heavily weighted)
+                # [0.001  0.01   0.001]
+                # With a bigger kernel weight:
+                # Kernel weights:
+                # [0.05   0.10   0.05]
+                # [0.10   0.40   0.10]    (More even distribution)
+                # [0.05   0.10   0.05]
+                self._current_image = cv2.GaussianBlur(self._current_image, (kernel_size, kernel_size), 0)
+            self.add_to_history()
 
 
     def apply_edge_detection(self, low_threshold: int = 50, high_threshold: int = 150) -> None:
@@ -106,8 +131,14 @@ class ImageProcessor:
 
         Good thing is OpenCV provides an implementation for this directly, so we don't have to implement this in 5 steps. However, we need to provide the low and high threshold manually for this function. 50 and 150 are sensible defaults for this.
         """
-
-        print(f"This function implements edge detection for image in {self._filename}")
+        if self._current_image is not None:
+            # Same stuff as grayscale filtering - we convert the image to grayscale before
+            gray = cv2.cvtColor(self._current_image, cv2.COLOR_BGR2GRAY)
+            # Then, cv2.Canny applies Canny filter between low and high threshold and returns a binary image with binary matrix of 255 for edges
+            edges = cv2.Canny(gray, low_threshold, high_threshold)
+            # As usual, we convert this single-channel image back to a three-channel image
+            self._current_image = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+            self.add_to_history()
 
 
     def adjust_brightness(self, value: int) -> None:
@@ -118,7 +149,12 @@ class ImageProcessor:
 
         Brightness is just the intensity of the pixel. The range of brightness can be between -100 to 100. A value of -100 subtracts 100 from pixel, making it dark. A value of 0 is default, and a value of 100 adds 100 to the brighness, making it light. However, all values need to be clamped to (0, 255) in the end since brightness can only be between 0 and 255. We do not implement this here, we do this during save.
         """
-        print(f"This function adjusts the brightness of the image at {self._filename}")
+        if self._current_image is not None:
+            # Adding brightness value directly to the image pixel could cause overflow since image is uint8 from 0-255. Adding value = 100 could cause 255 to wrap back to 44.
+            # Hence, we convert it to int16 first, since it can hold 37k values
+            # Then, we clamp the value back to uint8 (0-255), just as cv2 intended
+            self._current_image = np.clip(self._current_image.astype(np.int16) + value, 0, 255).astype(np.uint8)
+            self.add_to_history()
 
     def adjust_contrast(self, value: float) -> None:
         """Adjust contrast of the image
@@ -128,8 +164,13 @@ class ImageProcessor:
 
         Contrast is the difference in brightness between adjacent areas of an image. High contrast = big difference between light and dark areas, low contrast = small difference. The range we have here is 0.1 to 3.0. 0.1 = very washed out, 3.0 = very contrasty. The value is multiplied, so value >1 makes it contrasty, while value <1 makes it less contrasty.
         """
-
-        print(f"This function adjusts the contrast of the image at {self._filename}")
+        # Tried implementing the contrast function from the same brightness function above:
+        # np.clip(self._current_image.astype(np.int16) * value, 0, 255).astype(np.uint8)
+        # BUT this increased both brightness and contrast. The right way, when changing contrast, has to preserve the midpoint values while compressing the values on the right and left tail of the median 128
+        # So this function has to be implemented differently. Directly from the docs:
+        if self._current_image is not None:
+            self._current_image = cv2.convertScaleAbs(self._current_image, alpha=value, beta=0)
+            self.add_to_history()
 
     # SET 3 - IMAGE TRANSFORMATION FUNCTIONS. TBD: Aryan.
 
@@ -272,7 +313,8 @@ class ImageProcessor:
     # SET 4: Additional functions, because the preview implementation needs special functions to not apply cumulative values and pollute the history stack with incorrect values. TBD: Yasmeen
 
     def start_preview(self) -> None:
-        """Save current state before slider adjustment begins - very important!!!! will DEFINITELY mess up things if previews are applied on current image and NOT a copy of the current image"""
+        """Save current state before slider adjustment begins"""
+        # very important!!!! you will DEFINITELY mess up things if previews are applied on current image and NOT a copy of the current image
         print("Copying current image to preview base")
 
     def cancel_preview(self) -> None:

@@ -1,46 +1,10 @@
 import tkinter as tk
+from tkinter import ttk, messagebox
 import numpy as np
-from PIL import Image, ImageTk
-from image_processor import ImageProcessor
-from typing import Callable, Optional
+from .image_processor import ImageProcessor
+from typing import Callable
 
 # PLEASE REFER TO THE REFERENCE UI SCREENSHOT BEFORE YOU WORK ON YOUR SECTIONS
-
-# SET 1 - TBD: Sandeep
-class ImageProcessorApp:
-    """This is the main application class, initialised by main"""
-
-    def __init__(self):
-        """Initialisation happens here."""
-        # Things to be done:
-        # 0. Create application root window & initialise the image processor
-        # 1. Create widgets from Tkinter
-        # 2. Setup the layout and add widgets to layout
-        # 3. Update the display window with the layouts
-
-    def _create_widgets(self) -> None:
-        """All GUI components need to be created here"""
-        # Things to be done:
-        # 1. Create control panel
-        # 2. Create image canvas
-        # 3. Create menu manager
-        # 4. Add these widgets to main root
-
-    def _setup_layout(self) -> None:
-        """Setup the layout here"""
-        # Things to be done:
-        # 1. ControlPanel constructor to pack the control to left
-        # 2. Pack the canvas to fill the rest of the space
-
-    def _update_display(self) -> None:
-        """Update the image display and status bar"""
-        # Things to be done:
-        # 1. Get current image
-        # 2. Display filename, dimension, format as needed
-
-    def run(self) -> None:
-        """Run the application"""
-        # self.root.mainloop() goes here
 
 
 # SET 2 - TBD: Aryan
@@ -192,63 +156,349 @@ class ControlPanel:
             processor: ImageProcessor instance
             update_callback: Callback to update display
         """
+        self.parent = parent
+        self.processor = processor
+        self.update_callback = update_callback
+
+        self.frame = ttk.LabelFrame(parent, text="Controls", padding=10)
+        # Take up the entire vertical space on the left
+        self.frame.pack(fill=tk.Y, side=tk.LEFT, padx=5, pady=5)
+
+        # Tracking active slider, to know which transformation to apply. Without this, granular atomic update is a massive pain in the neck
+        self._slider_active = None
+
+        # Now, sub-widgets created by individual functions:
+        # 1. Basic controls: Basic grayscale & edge detection (buttons)
+        self._create_basic_controls()
+        # 2. Adjustment controls: Blur, Brightness, Contrast (sliders)
+        self._create_adjustment_controls()
+        # 3. Transform controls: Rotate 90, 180, 270, Flip horizontal & flip vertical
+        self._create_transform_controls()
+        # 4. Resize controls: Image resize with w, h, apply button, and restore original image
+        self._create_resize_controls()
+
+
 
     def _create_basic_controls(self) -> None:
         """Create basic filter controls"""
+        ttk.Label(self.frame, text="Basic Filters", font=("Helvetica", 10, "bold")).grid(row=0, column=0, columnspan=2, pady=5)
+
+        # Convert to Grayscale button
+        ttk.Button(self.frame, text="Convert to Grayscale", command=self._apply_grayscale).grid(row=1, column=0, columnspan=2, pady=2, sticky="ew")
+
+        # Edge Detection button
+        ttk.Button(self.frame, text="Edge Detection", command=self._apply_edge_detection).grid(row=2, column=0, columnspan=2, pady=2, sticky="ew")
+
+
 
     def _create_adjustment_controls(self) -> None:
         """Create adjustment sliders"""
+        ttk.Label(self.frame, text="Adjustments", font=("Helvetica", 10, "bold")).grid(row=3, column=0, columnspan=2, pady=(10,5))
+
+        # Now comes the difficult part - three sliders, with own labels. Need to be careful with how it is laid out, and how the mouse buttons bind with the functions
+
+        # Slider 1: Blur
+        ttk.Label(self.frame, text="Blur:").grid(row=4, column=0, sticky="w")
+
+        # we need a "state" variable to save the value of changes. Similar to useState in React. this intvar automatically observes and updates itself on slider change
+        self.blur_var = tk.IntVar(value=0)
+
+        # Now, the slider
+        blur_scale = ttk.Scale(self.frame, from_=0, to=20, variable=self.blur_var, orient=tk.HORIZONTAL)
+        blur_scale.grid(row=4, column=1, sticky="ew")
+
+        # On press of left mouse button, we need to call the function that starts blur adjustment
+        blur_scale.bind("<Button-1>", lambda e: self._start_blur_adjustment())
+
+        # As the slider moves, the blur needs to be preview-able live
+        blur_scale.bind("<B1-Motion>", lambda e: self._on_blur_preview())
+
+        # On release of the pressed left mouse button, we need to call function that finishes blur adjustment and pushes it to the history stack
+        blur_scale.bind("<ButtonRelease-1>", lambda e: self._finish_blur_adjustment())
+
+
+        # Slider 2: Brightness
+        ttk.Label(self.frame, text="Brightness:").grid(row=5, column=0, sticky="w")
+
+        # we need a "state" variable to save the value of changes as we did earlier with blur. Similar to useState in React. this intvar automatically observes and updates itself on slider change
+        self.brightness_var = tk.IntVar(value=0)
+
+        # Now, the slider
+        brightness_scale = ttk.Scale(self.frame, from_=-100, to=100, variable=self.brightness_var, orient=tk.HORIZONTAL)
+        brightness_scale.grid(row=5, column=1, sticky="ew")
+
+        # On press of left mouse button, we need to call the function that starts brightness adjustment
+        brightness_scale.bind("<Button-1>", lambda e: self._start_brightness_adjustment())
+
+        # As the slider moves, the brightness needs to be preview-able live
+        brightness_scale.bind("<B1-Motion>", lambda e: self._on_brightness_preview())
+
+        # On release of the pressed left mouse button, we need to call function that finishes brightness adjustment and pushes it to the history stack
+        brightness_scale.bind("<ButtonRelease-1>", lambda e: self._finish_brightness_adjustment())
+
+        # Slider 3: Contrast
+        ttk.Label(self.frame, text="Contrast:").grid(row=6, column=0, sticky="w")
+
+        # we need a "state" variable to save the value of changes as we did earlier with brightness. Similar to useState in React. this intvar automatically observes and updates itself on slider change
+        self.contrast_var = tk.IntVar(value=0)
+
+        # Now, the slider
+        contrast_scale = ttk.Scale(self.frame, from_=0.1, to=3.0, variable=self.contrast_var, orient=tk.HORIZONTAL)
+        contrast_scale.grid(row=6, column=1, sticky="ew")
+
+        # On press of left mouse button, we need to call the function that starts contrast adjustment
+        contrast_scale.bind("<Button-1>", lambda e: self._start_contrast_adjustment())
+
+        # As the slider moves, the contrast needs to be preview-able live
+        contrast_scale.bind("<B1-Motion>", lambda e: self._on_contrast_preview())
+
+        # On release of the pressed left mouse button, we need to call function that finishes contrast adjustment and pushes it to the history stack
+        contrast_scale.bind("<ButtonRelease-1>", lambda e: self._finish_contrast_adjustment())
+
+
 
     def _create_transform_controls(self) -> None:
         """Create transformation controls"""
+        ttk.Label(self.frame, text="Transform", font=("Helvetica", 10, "bold")).grid(
+            row=7, column=0, columnspan=2, pady=(10, 5)
+        )
+        # The buttons will be in a grid
+        transform_frame = ttk.Frame(self.frame)
+        transform_frame.grid(row=8, column=0, columnspan=2, pady=2)
+
+        # Rotate 90 button
+        ttk.Button(
+            transform_frame, text="Rotate 90°", command=lambda: self._rotate_image(90)
+        ).pack(side=tk.LEFT, padx=2)
+
+        # Rotate 180 button
+        ttk.Button(
+            transform_frame, text="Rotate 180°", command=lambda: self._rotate_image(180)
+        ).pack(side=tk.LEFT, padx=2)
+
+        # Rotate 270 button
+        ttk.Button(
+            transform_frame, text="Rotate 270°", command=lambda: self._rotate_image(270)
+        ).pack(side=tk.LEFT, padx=2)
+
+        # Separate frames for flip buttons
+        flip_frame = ttk.Frame(self.frame)
+        flip_frame.grid(row=9, column=0, columnspan=2, pady=2)
+
+        # Flip Horizontal button
+        ttk.Button(
+            flip_frame, text="Flip H", command=lambda: self._flip_image("horizontal")
+        ).pack(side=tk.LEFT, padx=2)
+
+        # Flip Vertical button
+        ttk.Button(
+            flip_frame, text="Flip V", command=lambda: self._flip_image("vertical")
+        ).pack(side=tk.LEFT, padx=2)
 
     def _create_resize_controls(self) -> None:
         """Create resize controls"""
+        ttk.Label(self.frame, text="Resize", font=("Helvetica", 10, "bold")).grid(
+            row=10, column=0, columnspan=2, pady=(10, 5)
+        )
+
+        size_frame = ttk.Frame(self.frame)
+        size_frame.grid(row=11, column=0, columnspan=2, pady=2)
+
+        # As done earlier, width and height variables need to be saved in a StringVar for reactive changes
+        ttk.Label(size_frame, text="W:").pack(side=tk.LEFT)
+        self.width_var = tk.StringVar(value="1000")
+        ttk.Entry(size_frame, textvariable=self.width_var, width=6).pack(
+            side=tk.LEFT, padx=2
+        )
+        ttk.Label(size_frame, text="H:").pack(side=tk.LEFT)
+        self.height_var = tk.StringVar(value="800")
+        ttk.Entry(size_frame, textvariable=self.height_var, width=6).pack(
+            side=tk.LEFT, padx=2
+        )
+
+        # Apply resize
+        ttk.Button(self.frame, text="Apply Resize", command=self._resize_image).grid(
+            row=12, column=0, columnspan=2, pady=2, sticky="ew"
+        )
+
+        # Revert to original
+        ttk.Button(
+            self.frame, text="Reset to Original", command=self._reset_image
+        ).grid(row=13, column=0, columnspan=2, pady=(10, 2), sticky="ew")
+
 
     def _apply_grayscale(self) -> None:
         """Apply grayscale filter"""
+        # First, we confirm and commit the preview
+        self.processor.commit_preview(clear_base=True)
+        # Then we reset the active slider
+        self._slider_active = None
+        # The actual grayscale application is called here
+        self.processor.apply_grayscale()
+        # The update callback now displays grayscale image
+        self.update_callback()
 
     def _apply_edge_detection(self) -> None:
-        """Apply edge detection filter"""
+        """Apply edge detection filter."""
+        self._slider_active = None
+        self.processor.apply_edge_detection()
+        self.update_callback()
 
     def _rotate_image(self, angle: int) -> None:
-        """Rotate image by specified angle"""
+        """Rotate image by specified angle."""
+        self._slider_active = None
+        self.processor.rotate_image(angle)
+        self.update_callback()
 
     def _flip_image(self, direction: str) -> None:
-        """Flip image in specified direction"""
+        """Flip image in specified direction."""
+        self._slider_active = None
+        self.processor.flip_image(direction)
+        self.update_callback()
 
     def _resize_image(self) -> None:
-        """Resize image to specified dimensions"""
+        """Resize image to specified dimensions."""
+        try:
+            width = int(self.width_var.get())
+            height = int(self.height_var.get())
+            if width > 0 and height > 0:
+                self._slider_active = None
+                self.processor.resize_image(width, height)
+                self.update_callback()
+        except ValueError:
+            messagebox.showerror("Error", "Invalid dimensions entered")
 
+
+    # THESE METHODS ARE CRUCIAL FOR CORRECT APPLICATION OF FILTERS
     def _start_blur_adjustment(self) -> None:
         """Start blur adjustment, save base state only if not already adjusting blur."""
+        if self._slider_active != "blur":
+            self.processor.start_preview()
+        self._slider_active = "blur"
 
     def _on_blur_preview(self) -> None:
         """Preview blur while dragging."""
+        if self._slider_active == "blur":
+            intensity = self.blur_var.get()
+            self.processor.apply_blur_preview(intensity)
+            self.update_callback()
 
     def _finish_blur_adjustment(self) -> None:
         """Finish blur adjustment - commit to history, BUTTTTTT keep the base for further adjustments"""
+        if self._slider_active == "blur":
+            self.processor.commit_preview(clear_base=False)
+            # self._slider_active = None
 
     def _start_brightness_adjustment(self) -> None:
         """Start brightness adjustment - save base state"""
+        if self._slider_active != "brightness":
+            self.processor.start_preview()
+        self._slider_active = "brightness"
 
     def _on_brightness_preview(self) -> None:
         """Preview brightness while dragging"""
+        if self._slider_active == "brightness":
+            brightness = self.brightness_var.get()
+            self.processor.adjust_brightness_preview(brightness)
+            self.update_callback()
 
     def _finish_brightness_adjustment(self) -> None:
         """Finish brightness adjustment - commit to history"""
+        if self._slider_active == "brightness":
+            self.processor.commit_preview(clear_base=False)
+            # self._slider_active = None
 
     def _start_contrast_adjustment(self) -> None:
         """Start contrast adjustment - save base state"""
+        if self._slider_active != "contrast":
+            self.processor.start_preview()
+        self._slider_active = "contrast"
 
     def _on_contrast_preview(self) -> None:
         """Preview contrast while dragging"""
+        if self._slider_active == "contrast":
+            contrast = self.contrast_var.get()
+            self.processor.adjust_contrast_preview(contrast)
+            self.update_callback()
 
     def _finish_contrast_adjustment(self) -> None:
         """Finish contrast adjustment - commit to history"""
+        if self._slider_active == "contrast":
+            self.processor.commit_preview(clear_base=False)
+            # self._slider_active = None
 
     def _reset_image(self) -> None:
         """Reset image to original state"""
+        self._slider_active = None
+        self.processor._preview_base = None
+        self.processor.reset_to_original()
+        self.update_callback()
+        self.blur_var.set(0)
+        self.brightness_var.set(0)
+        self.contrast_var.set(1.0)
+
+
+# SET 1 - TBD: Sandeep
+class ImageProcessorApp:
+    """This is the main application class, initialised by main"""
+
+    def __init__(self):
+        """Initialisation happens here."""
+        self.root = tk.Tk()
+        self.root.title("Image Processor")
+        self.root.geometry("1000x800")
+        self.root.minsize(800,600)
+
+        self.processor = ImageProcessor()
+
+        self._create_widgets()
+        self._setup_layout()
+        self._update_display()
+
+    def _create_widgets(self) -> None:
+        """All GUI components need to be created here"""
+        # Things to be done:
+
+        # 0. Create main container first, actually
+        # IMPORTANT: ttk, NOT tk. ttk = Themed TK, perfect for native look/feel
+        self.main_container = ttk.Frame(self.root)
+        self.main_container.pack(fill=tk.BOTH, expand=True)
+
+        # 1. Create control panel
+        self.control_panel = ControlPanel(self.main_container, self.processor, self._update_display)
+
+        # 2. Create image canvas
+        self.image_canvas = ImageCanvas(self.main_container)
+
+        # 3. Create menu manager
+        self.menu_manager = MenuManager(self.root, self.processor, self._update_display)
+
+        # 4. Create Status bar
+        self.status_bar = StatusBar(self.root)
+
+        # 5. My bad I'm dumb - no need to add everything to root, since main_container is passed already to each widget function
+
+    def _setup_layout(self) -> None:
+        """Setup the layout here"""
+        # Things to be done:
+        # 1. ControlPanel constructor to pack the control to left - TBD: to be implemented in the ControlPanel constructor, NOT here
+        # 2. Pack the canvas to fill the rest of the space
+        self.image_canvas.canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+    def _update_display(self) -> None:
+        """Update the image display and status bar"""
+        # Things to be done:
+        # 1. Get current image and set it to the current image in canvas, basically live rendering on changes
+        current_image = self.processor.get_current_image()
+        self.image_canvas.display_image(current_image)
+        # 2. Display filename, dimension, format as needed
+        filename, dimensions, format_name = self.processor.get_image_info()
+        self.status_bar.update_info(filename, dimensions, format_name)
+
+    def run(self) -> None:
+        """Run the application"""
+        self.root.mainloop()
+
 
 if __name__ == "__main__":
     app = ImageProcessorApp()

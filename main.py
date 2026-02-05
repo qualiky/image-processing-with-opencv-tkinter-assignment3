@@ -1,6 +1,7 @@
-def main():
-    print("Hello from image-processing-with-opencv-tkinter-assignment3!")
+#!/usr/bin/env python3
 
+from src.main_window import ImageProcessorApp
 
 if __name__ == "__main__":
-    main()
+    app = ImageProcessorApp()
+    app.run()
