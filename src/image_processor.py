@@ -316,23 +316,57 @@ class ImageProcessor:
         """Save current state before slider adjustment begins"""
         # very important!!!! you will DEFINITELY mess up things if previews are applied on current image and NOT a copy of the current image
         print("Copying current image to preview base")
+        if self._current_image is None:
+            return
+        self._preview_base = self._current_image.copy()
 
     def cancel_preview(self) -> None:
         """Revert to state before preview started. Just revert what we did above."""
         print("Copying preview base to current image")
+        if self._preview_base is None:
+            return
+        self._current_image = self._preview_base.copy()
+        self._preview_base = None
 
     def commit_preview(self, clear_base: bool = True) -> None:
         """Finalize preview, add to history. Only when a user is satisfied with the preview"""
         print("Adding current image to history")
+        if self._current_image is None:
+            return
+        self._history.append(self._current_image.copy())
+
+        if clear_base:
+            self._preview_base = None
 
     def apply_blur_preview(self, intensity: int) -> None:
         """Apply blur for real-time preview (no history)"""
         print("Applying blur to preview base, and setting it as current image")
+        if self._preview_base is None:
+            return
+        k = max(1, intensity * 2 + 1)
+        blurred = cv2.GaussianBlur(self._preview_base, (k, k), 0)
+        self._current_image = blurred
 
     def adjust_brightness_preview(self, value: int) -> None:
         """Adjust brightness for real-time preview (no history)"""
         print("Applying brightness to preview base, and setting it as current image")
+        if self._preview_base is None:
+            return
+        bright = cv2.convertScaleAbs(
+            self._preview_base,
+            alpha=1.0,
+            beta=value
+        )
+        self._current_image = bright
 
     def adjust_contrast_preview(self, value: float) -> None:
         """Adjust contrast for real-time preview (no history)"""
         print("Applying contrast to preview base, and setting it as current image")
+        if self._preview_base is None:
+            return
+        contrast = cv2.convertScaleAbs(
+            self._preview_base,
+            alpha=value,
+            beta=0
+        )
+        self._current_image = contrast
