@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from typing import Optional, Tuple, List
+import os
 from cv2 import rotate, ROTATE_90_CLOCKWISE, ROTATE_180, ROTATE_90_COUNTERCLOCKWISE, flip, resize, INTER_AREA, INTER_LINEAR
 
 class ImageProcessor:
