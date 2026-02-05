@@ -8,6 +8,8 @@ from typing import Optional, Callable
 from .image_processor import ImageProcessor
 
 # PLEASE REFER TO THE REFERENCE UI SCREENSHOT BEFORE YOU WORK ON YOUR SECTIONS
+
+# Set 2 - TBD: Aryan
 class ImageCanvas:
     """Canvas used to display image"""
 
