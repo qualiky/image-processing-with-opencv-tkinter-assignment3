@@ -8,38 +8,33 @@ from typing import Optional, Callable
 from .image_processor import ImageProcessor
 
 # PLEASE REFER TO THE REFERENCE UI SCREENSHOT BEFORE YOU WORK ON YOUR SECTIONS
-
-
-# SET 2 - TBD: Aryan
 class ImageCanvas:
-    """Image canvas component that displays the image canvas"""
+    """Canvas used to display image"""
 
     def __init__(self, parent: tk.Widget, width: int = 800, height: int = 600):
-        """Initialise the image canvas where image is loaded & worked on
+        """Setup image canvas"""
 
-        Args:
-            parent: parent container Widget
-            width: canvas width
-            height: canvas height
-
-        """
         self._parent = parent
         self._width = width
         self._height = height
-        # just a simple canvas to draw the image on
         self._canvas = tk.Canvas(parent, width=width, height=height)
+        self.canvas = self._canvas
         self._image_id: Optional[int] = None
         self._tk_image: Optional[ImageTk.PhotoImage] = None
         self._display_scale: float = 1.0
 
+        print("ImageCanvas initialised")
+
+
     def display_image(self, image: np.ndarray) -> None:
-        """Show an image on the canvas"""
+        """Display image on canvas"""
 
         if image is None:
+            print("No image to display")
             return
 
         try:
-            # OpenCV uses BGR, PIL wants RGB
+            # Convert OpenCV image to PIL format
             if len(image.shape) == 2:
                 pil_image = Image.fromarray(image)
             else:
@@ -47,41 +42,52 @@ class ImageCanvas:
 
             img_w, img_h = pil_image.size
             if img_w == 0 or img_h == 0:
+                print("Invalid image size")
                 return
 
-            # figure out how much to shrink to fit
+            # Calculate scale to fit canvas
             scale_w = self._width / img_w
             scale_h = self._height / img_h
             self._display_scale = min(scale_w, scale_h, 1.0)
 
-            # only resize if it's too big
+            # Resize only if image is large
             if self._display_scale < 1:
                 new_w = int(img_w * self._display_scale)
                 new_h = int(img_h * self._display_scale)
                 pil_image = pil_image.resize((new_w, new_h), Image.LANCZOS)
 
-            # draw it in the center
+            # Draw image at center
             self._tk_image = ImageTk.PhotoImage(pil_image)
             self._canvas.delete("all")
             self._image_id = self._canvas.create_image(
-                self._width // 2, self._height // 2,
-                image=self._tk_image, anchor="center"
+                self._width // 2,
+                self._height // 2,
+                image=self._tk_image,
+                anchor="center"
             )
 
-        except:
+            print("Image displayed on canvas")
+
+        except Exception:
             print("Error displaying image")
 
+
     def clear_canvas(self) -> None:
-        """Remove everything from the canvas"""
+        """Clear canvas"""
+
         self._canvas.delete("all")
         self._image_id = None
         self._tk_image = None
         self._display_scale = 1.0
 
-    def get_display_scale(self) -> float:
-        """Return current scale factor"""
-        return self._display_scale
+        print("Canvas cleared")
 
+
+    def get_display_scale(self) -> float:
+        """Return scale factor"""
+
+        print("Returning display scale")
+        return self._display_scale
 
 
 # Set 3 - TBD: Bishesh
