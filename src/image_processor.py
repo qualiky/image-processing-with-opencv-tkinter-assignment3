@@ -35,6 +35,31 @@ class ImageProcessor:
     # Functions to be implemented:
     # SET 1: IMAGE LOAD AND SAVE OPERATIONS. TBD: Bishesh
     def load_image(self, filepath: str) -> bool:
+        """
+        Load image from file path.
+
+        Args:
+            filepath: Path to image file
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:  # Check if the file exists in the given path
+            if not os.path.exists(filepath):
+                return False
+
+            image = cv2.imread(filepath)  # Try to read the image file using OpenCV
+            if image is None:  # Returns none if the image can't be loaded
+                return False
+
+            self._original_image = image.copy()  # Save a copy of the image (for reset)
+            self._current_image = image.copy()  # Save a working copy where the edits will be made
+            self._filename = os.path.basename(filepath)  # Taking only the filename from the path
+            self._clear_history()   # Clear any edit history from previous edits
+            self.add_to_history()  # Add the image to the history stock
+            return True
+        except Exception:  # Catch any unexpected errors
+            return False
         """Load the image from a given path.
 
         Args:
@@ -44,11 +69,25 @@ class ImageProcessor:
             bool: If successful, returns True, else False.
 
         """
-        print(f"This function loads file from {filepath}")
-
-
+      
 
     def save_image(self, filepath: str) -> bool:
+        """
+        Save current image to file.
+
+        Args:
+            filepath: Path to save image
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:  # Will not save if there is no image loaded.
+            if self._current_image is None:
+                return False
+            # Use OpenCV to write image to local storage. 
+            return cv2.imwrite(filepath, self._current_image)
+        except Exception:  # Catch any unexpected error during save
+            return False
         """Save the current image snapshot as a file.
 
         Args:
@@ -58,22 +97,40 @@ class ImageProcessor:
             bool: If successful, returns True, else False.
 
         """
-        print(f"This function saves image to {filepath}")
-
+        
 
     def get_image_metadata(self) -> Tuple[str, Tuple[int, int], str]:
-        """Load metadata from the currently selected image
+        """
+        Get current image information.
 
         Returns:
-            Tuple: filename as string, image resolution as a Tuple[int, int], format as string
-
+            Tuple containing (filename, dimensions, format)
         """
-        print(f"This function returns metadata of the image at path {self._filename}")
+        if self._current_image is None:  # If no image is loaded
+            return ("No image", (0, 0), "N/A")
+        # OpenCV stores images as numpy arrays with shape (heigh, width, channels)
+        height, width = self._current_image.shape[:2]  # Extract dimensions from the image array
+        dimensions = (width, height)  # Create dimensions tuple in (width, height)
+        filename = self._filename or "Untitled"  # Use the existing filename or default to "Untitled"
 
+        if self._filename:  # Figure out the image format
+            ext = os.path.splitext(self._filename)[1].lower()  # Get the file extension in lowecase
+            format_map = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".bmp": "BMP"}  # Assign file extension to their format names
+            format_name = format_map.get(ext, "Unknown")  # Look for format, default to "Unknown" if not found
+        else:
+            format_name = "Unknown"
+
+        return (filename, dimensions, format_name)   # Returns metadata as a tuple
+        """Load metadata from the currently selected image
+        Returns:
+            Tuple: filename as string, image resolution as a Tuple[int, int], format as string """
+        
 
     def reset_image(self) -> None:
-        """Reset the currently transformed image to the original state"""
-        print(f"This function resets image back to original state at {self._filename}")
+        """Reset current image to original state."""
+        if self._original_image is not None:  # Reset only if there is an original image already stored
+            self._current_image = self._original_image.copy()   # Restore the current image to original
+            self.add_to_history()  # Save this reset action into history
 
     # SET 2: Primary Image Transformations. TBD: Sandeep.
 
