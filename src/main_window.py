@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import numpy as np
 from .image_processor import ImageProcessor
 from typing import Callable
@@ -63,10 +63,16 @@ class StatusBar:
 # Set 4 - TBD: Yasmeen
 class MenuManager:
     """Menu bar management."""
+    def __init__(self, root: tk.Tk, processor: ImageProcessor, update_callback: Callable):
+        self.root = root
+        self.processor = processor
+        self.update_callback = update_callback
 
-    def __init__(
-        self, root: tk.Tk, processor: ImageProcessor, update_callback: Callable
-    ):
+        self.menubar = tk.Menu(root)
+        root.config(menu=self.menubar)
+
+        self._create_file_menu()
+        self._create_edit_menu()
         """
         Initialize menu manager on the top of the screen
 
@@ -77,25 +83,77 @@ class MenuManager:
         """
 
     def _create_file_menu(self) -> None:
-        """Create file menu."""
+        file_menu = tk.Menu(self.menubar, tearoff=0)
+        file_menu.add_command(label="Open", command=self._open_file)
+        file_menu.add_separator()
+        file_menu.add_command(label="Save", command=self._save_file)
+        file_menu.add_command(label="Save As", command=self._save_as_file)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+
+        self.menubar.add_cascade(label="File", menu=file_menu)
 
     def _create_edit_menu(self) -> None:
-        """Create edit menu."""
+        edit_menu = tk.Menu(self.menubar, tearoff=0)
+        edit_menu.add_command(label="Undo", command=self._undo)
+        edit_menu.add_command(label="Redo", command=self._redo)
+
+        self.menubar.add_cascade(label="Edit", menu=edit_menu)
 
     def _open_file(self) -> None:
-        """Open file dialog."""
+        path = filedialog.askopenfilename(
+            filetypes=[
+                ("Image Files", "*.png *.jpg *.bmp")
+            ]
+        )
+        if not path:
+            return
+
+        try:
+            self.processor.load_image(path)
+            self.update_callback()
+        except Exception as e:
+            messagebox.showerror("Open Error", str(e))
 
     def _save_file(self) -> None:
-        """Save current image on the same base file"""
+        try:
+            if not self.processor.current_path:
+                self._save_as_file()
+            else:
+                self.processor.save_image()
+        except Exception as e:
+            messagebox.showerror("Save Error", str(e))
 
     def _save_as_file(self) -> None:
-        """Save current image with new filename"""
+        path = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            filetypes=[
+                ("PNG", "*.png"),
+                ("JPEG", "*.jpg"),
+                ("BMP", "*.bmp")
+            ],
+        )
+        if not path:
+            return
+
+        try:
+            self.processor.save_image(path)
+        except Exception as e:
+            messagebox.showerror("Save As Error", str(e))
 
     def _undo(self) -> None:
-        """Undo last operation"""
+        try:
+            self.processor.undo()
+            self.update_callback()
+        except Exception as e:
+            messagebox.showinfo("Undo", str(e))
 
     def _redo(self) -> None:
-        """Redo last undone operation"""
+        try:
+            self.processor.redo()
+            self.update_callback()
+        except Exception as e:
+            messagebox.showinfo("Redo", str(e))
 
 
 # Set 5 - TBD: Sandeep
