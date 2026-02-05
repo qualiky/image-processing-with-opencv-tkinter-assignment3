@@ -171,150 +171,149 @@ class ImageProcessor:
         if self._current_image is not None:
             self._current_image = cv2.convertScaleAbs(self._current_image, alpha=value, beta=0)
             self.add_to_history()
+        
+    # SET 3 - IMAGE TRANSFORMATION FUNCTIONS. TBD: Aryan.
 
-    # SET 3 - IMAGE TRANSFORMATION FUNCTIONS. Aryan.
+    def rotate_image(self, angle: int) -> None:
+        """Rotate image"""
+        # Use current image if available, else original
+        source = self._current_image or self._original_image
+        if source is None:
+            return
 
-def rotate_image(self, angle: int) -> None:
-    """Rotate image"""
+        # Rotate based on fixed angle
+        if angle == 90:
+            result = rotate(source, ROTATE_90_CLOCKWISE)
+        elif angle == 180:
+            result = rotate(source, ROTATE_180)
+        elif angle == 270:
+            result = rotate(source, ROTATE_90_COUNTERCLOCKWISE)
+        else:
+            return
 
-    # Use current image if available, else original
-    source = self._current_image or self._original_image
-    if source is None:
-        return
-
-    # Rotate based on fixed angle
-    if angle == 90:
-        result = rotate(source, ROTATE_90_CLOCKWISE)
-    elif angle == 180:
-        result = rotate(source, ROTATE_180)
-    elif angle == 270:
-        result = rotate(source, ROTATE_90_COUNTERCLOCKWISE)
-    else:
-        return
-
-    self._current_image = result
-    self.add_to_history()
-    print("Image rotated")
-
-
-def flip_image(self, direction: str) -> None:
-    """Flip image"""
-
-    # Select image source
-    source = self._current_image or self._original_image
-    if source is None:
-        return
-
-    # Flip based on direction
-    if direction == "horizontal":
-        result = flip(source, 1)
-    elif direction == "vertical":
-        result = flip(source, 0)
-    else:
-        return
-
-    self._current_image = result
-    self.add_to_history()
-    print("Image flipped")
+        self._current_image = result
+        self.add_to_history()
+        print("Image rotated")
 
 
-def resize_image(self, width: int, height: int) -> None:
-    """Resize image"""
+    def flip_image(self, direction: str) -> None:
+        """Flip image"""
 
-    # Select image source
-    source = self._current_image or self._original_image
-    if source is None:
-        return
+        # Select image source
+        source = self._current_image or self._original_image
+        if source is None:
+            return
 
-    # Ignore invalid sizes
-    if width <= 0 or height <= 0:
-        return
+        # Flip based on direction
+        if direction == "horizontal":
+            result = flip(source, 1)
+        elif direction == "vertical":
+            result = flip(source, 0)
+        else:
+            return
 
-    self._current_image = resize(
-        source, (width, height), interpolation=INTER_LINEAR
-    )
-    self.add_to_history()
-    print("Image resized")
-
-
-def get_current_image(self) -> Optional[np.ndarray]:
-    """Return current image"""
-
-    # Prefer edited image
-    image = self._current_image or self._original_image
-    print("Returning current image")
-    return image
+        self._current_image = result
+        self.add_to_history()
+        print("Image flipped")
 
 
-def can_undo(self) -> bool:
-    """Check undo"""
+    def resize_image(self, width: int, height: int) -> None:
+        """Resize image"""
 
-    # Undo possible only if history exists
-    print("Checking undo")
-    return self._history_index > 0
+        # Select image source
+        source = self._current_image or self._original_image
+        if source is None:
+            return
 
+        # Ignore invalid sizes
+        if width <= 0 or height <= 0:
+            return
 
-def can_redo(self) -> bool:
-    """Check redo"""
-
-    # Redo possible if not at last index
-    print("Checking redo")
-    return self._history_index < len(self._history) - 1
-
-
-def undo(self) -> bool:
-    """Undo last action"""
-
-    if not self.can_undo():
-        print("Undo not possible")
-        return False
-
-    self._history_index -= 1
-    self._current_image = self._history[self._history_index].copy()
-    print("Undo done")
-    return True
+        self._current_image = resize(
+            source, (width, height), interpolation=INTER_LINEAR
+        )
+        self.add_to_history()
+        print("Image resized")
 
 
-def redo(self) -> bool:
-    """Redo last action"""
+    def get_current_image(self) -> Optional[np.ndarray]:
+        """Return current image"""
 
-    if not self.can_redo():
-        print("Redo not possible")
-        return False
-
-    self._history_index += 1
-    self._current_image = self._history[self._history_index].copy()
-    print("Redo done")
-    return True
+        # Prefer edited image
+        image = self._current_image or self._original_image
+        print("Returning current image")
+        return image
 
 
-def add_to_history(self) -> None:
-    """Save image state"""
+    def can_undo(self) -> bool:
+        """Check undo"""
 
-    # Do nothing if no image
-    if self._current_image is None:
-        return
-
-    # Remove forward history if needed
-    if self._history_index < len(self._history) - 1:
-        self._history = self._history[: self._history_index + 1]
-
-    self._history.append(self._current_image.copy())
-
-    # Keep history size limited
-    if len(self._history) > self._max_history:
-        self._history.pop(0)
-
-    self._history_index = len(self._history) - 1
-    print("History updated")
+        # Undo possible only if history exists
+        print("Checking undo")
+        return self._history_index > 0
 
 
-def clear_history(self) -> None:
-    """Clear all history"""
+    def can_redo(self) -> bool:
+        """Check redo"""
 
-    self._history = []
-    self._history_index = -1
-    print("History cleared")
+        # Redo possible if not at last index
+        print("Checking redo")
+        return self._history_index < len(self._history) - 1
+
+
+    def undo(self) -> bool:
+        """Undo last action"""
+
+        if not self.can_undo():
+            print("Undo not possible")
+            return False
+
+        self._history_index -= 1
+        self._current_image = self._history[self._history_index].copy()
+        print("Undo done")
+        return True
+
+
+    def redo(self) -> bool:
+        """Redo last action"""
+
+        if not self.can_redo():
+            print("Redo not possible")
+            return False
+
+        self._history_index += 1
+        self._current_image = self._history[self._history_index].copy()
+        print("Redo done")
+        return True
+
+
+    def add_to_history(self) -> None:
+        """Save image state"""
+
+        # Do nothing if no image
+        if self._current_image is None:
+            return
+
+        # Remove forward history if needed
+        if self._history_index < len(self._history) - 1:
+            self._history = self._history[: self._history_index + 1]
+
+        self._history.append(self._current_image.copy())
+
+        # Keep history size limited
+        if len(self._history) > self._max_history:
+            self._history.pop(0)
+
+        self._history_index = len(self._history) - 1
+        print("History updated")
+
+
+    def clear_history(self) -> None:
+        """Clear all history"""
+
+        self._history = []
+        self._history_index = -1
+        print("History cleared")
 
     # SET 4: Additional functions, because the preview implementation needs special functions to not apply cumulative values and pollute the history stack with incorrect values. TBD: Yasmeen
 
